@@ -1,10 +1,25 @@
 import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+import { createClient } from 'npm:@supabase/supabase-js@2'
+
+async function requireUser(req: Request) {
+  const supabaseUrl = Deno.env.get('SUPABASE_URL')!
+  const anonKey = Deno.env.get('SUPABASE_ANON_KEY')!
+  const client = createClient(supabaseUrl, anonKey, {
+    global: { headers: { Authorization: req.headers.get('Authorization') || '' } }
+  })
+  const { data, error } = await client.auth.getUser()
+  if (error || !data.user) return null
+  return data.user
+}
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
   if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
 
   try {
+    const user = await requireUser(req)
+    if (!user) return jsonResponse({ error: 'Not authenticated' }, 401)
+
     const { transcript = '', role = 'Software Engineer' } = await req.json()
     const apiKey = Deno.env.get('OPENAI_API_KEY')
 

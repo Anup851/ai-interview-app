@@ -106,12 +106,22 @@ export async function uploadResumeAndAnalyze({ userId, file }) {
 
 export async function getActiveResume(userId) {
   if (!isSupabaseConfigured || !userId) return null
-  const { data, error } = await supabase
+  let { data, error } = await supabase
     .from('resumes')
     .select('*, resume_analyses(*)')
     .eq('user_id', userId)
     .eq('is_active', true)
     .maybeSingle()
+  if (error?.code === '42703' || error?.message?.includes('schema cache')) {
+    const fallback = await supabase
+      .from('resumes')
+      .select('id, user_id, file_name, file_path, file_size, mime_type, is_active, created_at, updated_at, resume_analyses(*)')
+      .eq('user_id', userId)
+      .eq('is_active', true)
+      .maybeSingle()
+    data = fallback.data
+    error = fallback.error
+  }
   if (error) throw error
   return data
 }

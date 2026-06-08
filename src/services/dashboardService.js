@@ -50,13 +50,15 @@ export async function getDashboardStats(userId) {
 
   if (!userId) return { metrics: emptyMetrics, trend: buildTrend([], []) }
 
-  const [resumeResult, interviewResult, questionResult] = await Promise.all([
-    supabase
-      .from('resume_analyses')
-      .select('ats_score, status, created_at')
-      .eq('user_id', userId)
-      .eq('status', 'completed')
-      .order('created_at', { ascending: false }),
+  const resumeQuery = supabase
+    .from('resume_analyses')
+    .select('ats_score, status, created_at')
+    .eq('user_id', userId)
+    .eq('status', 'completed')
+    .order('created_at', { ascending: false })
+
+  let [resumeResult, interviewResult, questionResult] = await Promise.all([
+    resumeQuery,
     supabase
       .from('mock_interviews')
       .select('overall_score, status, created_at')
@@ -67,6 +69,14 @@ export async function getDashboardStats(userId) {
       .select('id, generated_questions(id)')
       .eq('user_id', userId)
   ])
+
+  if (resumeResult.error?.code === '42703' || resumeResult.error?.message?.includes('status')) {
+    resumeResult = await supabase
+      .from('resume_analyses')
+      .select('ats_score, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+  }
 
   if (resumeResult.error) throw resumeResult.error
   if (interviewResult.error) throw interviewResult.error

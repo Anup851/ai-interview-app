@@ -1,11 +1,16 @@
 project_id = "preppilot"
 
 [functions.generate-questions]
-verify_jwt = true
+verify_jwt = false
 
 [functions.analyze-resume]
-verify_jwt = true
+verify_jwt = false
 
 [functions.score-interview]
-verify_jwt = true
+verify_jwt = false
 
+[functions.create-checkout-session]
+verify_jwt = false
+
+[functions.stripe-webhook]
+verify_jwt = false

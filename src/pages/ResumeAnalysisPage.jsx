@@ -65,6 +65,8 @@ export default function ResumeAnalysisPage() {
       setProgress(100)
       pushToast(result.analysis.status === 'completed' ? 'Resume analysis complete.' : 'Resume uploaded, but AI analysis needs attention.')
     } catch (error) {
+      setProgress(0)
+      setAnalysisStatus('failed')
       pushToast(error.message || 'Resume analysis failed.', 'info')
     } finally {
       window.clearInterval(interval)
