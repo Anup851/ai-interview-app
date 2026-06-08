@@ -1,0 +1,39 @@
+import { corsHeaders, jsonResponse } from '../_shared/cors.ts'
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders })
+  if (req.method !== 'POST') return jsonResponse({ error: 'Method not allowed' }, 405)
+
+  try {
+    const { role, level, style, skills = [] } = await req.json()
+    if (!role) return jsonResponse({ error: 'Missing role' }, 400)
+
+    const prompt = `Generate 5 interview questions for a ${level} ${role}. Style: ${style}. Skills: ${skills.join(', ')}.`
+    const apiKey = Deno.env.get('OPENAI_API_KEY')
+
+    if (!apiKey) return jsonResponse({ error: 'OPENAI_API_KEY is not configured' }, 503)
+
+    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: 'gpt-4.1-mini',
+        messages: [
+          { role: 'system', content: 'Return only a JSON object with a questions string array.' },
+          { role: 'user', content: prompt }
+        ],
+        temperature: 0.7,
+        response_format: { type: 'json_object' }
+      })
+    })
+
+    const data = await response.json()
+    const parsed = JSON.parse(data.choices?.[0]?.message?.content || '{"questions":[]}')
+    return jsonResponse({ questions: parsed.questions || [] })
+  } catch (error) {
+    return jsonResponse({ error: error.message || 'Question generation failed' }, 500)
+  }
+})

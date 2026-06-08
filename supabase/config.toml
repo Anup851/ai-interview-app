@@ -1,0 +1,11 @@
+project_id = "preppilot"
+
+[functions.generate-questions]
+verify_jwt = true
+
+[functions.analyze-resume]
+verify_jwt = true
+
+[functions.score-interview]
+verify_jwt = true
+
