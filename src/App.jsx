@@ -1,4 +1,5 @@
 import { Navigate, Route, Routes } from 'react-router-dom'
+import AuthRedirectHandler from './components/common/AuthRedirectHandler.jsx'
 import ProtectedRoute from './components/common/ProtectedRoute.jsx'
 import { AuthProvider } from './context/AuthContext.jsx'
 import { ThemeProvider } from './context/ThemeContext.jsx'
@@ -21,6 +22,7 @@ export default function App() {
     <ThemeProvider>
       <AuthProvider>
         <ToastProvider>
+          <AuthRedirectHandler />
           <Routes>
             <Route path="/" element={<LandingPage />} />
             <Route path="/login" element={<LoginPage />} />
