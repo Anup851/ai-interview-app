@@ -53,8 +53,9 @@ export async function getDashboardStats(userId) {
   const [resumeResult, interviewResult, questionResult] = await Promise.all([
     supabase
       .from('resume_analyses')
-      .select('ats_score, created_at')
+      .select('ats_score, status, created_at')
       .eq('user_id', userId)
+      .eq('status', 'completed')
       .order('created_at', { ascending: false }),
     supabase
       .from('mock_interviews')

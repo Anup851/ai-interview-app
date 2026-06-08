@@ -19,6 +19,7 @@ export default function ResumeAnalysisPage() {
   const [strengths, setStrengths] = useState(isConfigured ? [] : demoStrengths)
   const [weaknesses, setWeaknesses] = useState(isConfigured ? [] : demoWeaknesses)
   const [suggestions, setSuggestions] = useState(isConfigured ? [] : demoSuggestions)
+  const [analysisStatus, setAnalysisStatus] = useState(isConfigured ? 'pending' : 'completed')
   const [analyzing, setAnalyzing] = useState(false)
   const [dragging, setDragging] = useState(false)
 
@@ -31,6 +32,7 @@ export default function ResumeAnalysisPage() {
         setFileName(resume.file_name)
         setProgress(100)
         setScore(latestAnalysis?.ats_score || 0)
+        setAnalysisStatus(latestAnalysis?.status || 'pending')
         setStrengths(latestAnalysis?.strengths || [])
         setWeaknesses(latestAnalysis?.weaknesses || [])
         setSuggestions(latestAnalysis?.suggestions || [])
@@ -56,11 +58,12 @@ export default function ResumeAnalysisPage() {
     try {
       const result = await uploadResumeAndAnalyze({ userId: user?.id, file })
       setScore(result.analysis.ats_score)
+      setAnalysisStatus(result.analysis.status || 'completed')
       setStrengths(result.analysis.strengths)
       setWeaknesses(result.analysis.weaknesses)
       setSuggestions(result.analysis.suggestions)
       setProgress(100)
-      pushToast('Resume analysis complete.')
+      pushToast(result.analysis.status === 'completed' ? 'Resume analysis complete.' : 'Resume uploaded, but AI analysis needs attention.')
     } catch (error) {
       pushToast(error.message || 'Resume analysis failed.', 'info')
     } finally {
@@ -94,7 +97,7 @@ export default function ResumeAnalysisPage() {
           </div>
           <div className="mt-6"><div className="flex items-center justify-between text-sm font-bold"><span>{analyzing ? 'Analyzing resume' : 'Upload progress'}</span><span>{progress}%</span></div><div className="mt-2 h-3 rounded-full bg-zinc-100 dark:bg-white/10"><div className="h-3 rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-300" style={{ width: `${progress}%` }} /></div></div>
         </Card>
-        <Card className="grid place-items-center text-center"><ProgressRing value={score} label="ATS" /><h2 className="mt-5 text-xl font-extrabold text-zinc-950 dark:text-white">{score ? (score >= 90 ? 'Excellent match' : 'Strong match') : 'No score yet'}</h2><p className="mt-2 text-sm text-zinc-500">{score ? 'Score from your latest resume analysis.' : 'Upload a resume to create your first ATS score.'}</p></Card>
+        <Card className="grid place-items-center text-center"><ProgressRing value={score} label="ATS" /><h2 className="mt-5 text-xl font-extrabold text-zinc-950 dark:text-white">{analysisStatus === 'failed' ? 'Analysis failed' : score ? (score >= 90 ? 'Excellent match' : 'Strong match') : 'No score yet'}</h2><p className="mt-2 text-sm text-zinc-500">{analysisStatus === 'failed' ? 'Check your OpenAI key and function deployment, then try again.' : score ? 'Score from your latest resume analysis.' : 'Upload a resume to create your first ATS score.'}</p></Card>
       </section>
       <section className="grid gap-6 lg:grid-cols-3">
         <InsightList title="Strengths" items={strengths} color="emerald" />

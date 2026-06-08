@@ -28,6 +28,10 @@ begin
   if not exists (select 1 from pg_type where typname = 'usage_event_type') then
     create type public.usage_event_type as enum ('resume_analysis', 'question_generation', 'mock_interview', 'feedback_report');
   end if;
+
+  if not exists (select 1 from pg_type where typname = 'analysis_status') then
+    create type public.analysis_status as enum ('pending', 'completed', 'failed');
+  end if;
 end $$;
 
 create or replace function public.set_updated_at()
@@ -59,16 +63,20 @@ create table if not exists public.resumes (
   file_path text not null,
   file_size integer,
   mime_type text not null default 'application/pdf',
+  extracted_text text,
   is_active boolean not null default false,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.resumes add column if not exists extracted_text text;
 
 create table if not exists public.resume_analyses (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
   resume_id uuid not null references public.resumes(id) on delete cascade,
   ats_score integer not null check (ats_score between 0 and 100),
+  status public.analysis_status not null default 'completed',
   strengths jsonb not null default '[]'::jsonb,
   weaknesses jsonb not null default '[]'::jsonb,
   suggestions jsonb not null default '[]'::jsonb,
@@ -76,6 +84,8 @@ create table if not exists public.resume_analyses (
   raw_summary text,
   created_at timestamptz not null default now()
 );
+
+alter table public.resume_analyses add column if not exists status public.analysis_status not null default 'completed';
 
 create table if not exists public.question_sets (
   id uuid primary key default gen_random_uuid(),
@@ -107,10 +117,13 @@ create table if not exists public.mock_interviews (
   started_at timestamptz,
   completed_at timestamptz,
   duration_seconds integer not null default 0,
+  audio_path text,
   overall_score integer check (overall_score between 0 and 100),
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now()
 );
+
+alter table public.mock_interviews add column if not exists audio_path text;
 
 create table if not exists public.interview_answers (
   id uuid primary key default gen_random_uuid(),
@@ -315,7 +328,7 @@ create policy "Users read own usage" on public.usage_events for select using (au
 create policy "Users insert own usage" on public.usage_events for insert with check (auth.uid() = user_id);
 
 insert into storage.buckets (id, name, public)
-values ('resumes', 'resumes', false), ('reports', 'reports', false)
+values ('resumes', 'resumes', false), ('reports', 'reports', false), ('interview-audio', 'interview-audio', false)
 on conflict (id) do nothing;
 
 drop policy if exists "Users upload own resume files" on storage.objects;
@@ -323,6 +336,7 @@ drop policy if exists "Users read own resume files" on storage.objects;
 drop policy if exists "Users update own resume files" on storage.objects;
 drop policy if exists "Users delete own resume files" on storage.objects;
 drop policy if exists "Users manage own report files" on storage.objects;
+drop policy if exists "Users manage own interview audio files" on storage.objects;
 
 create policy "Users upload own resume files" on storage.objects for insert with check (
   bucket_id = 'resumes'
@@ -349,5 +363,13 @@ create policy "Users manage own report files" on storage.objects for all using (
   and auth.uid()::text = (storage.foldername(name))[1]
 ) with check (
   bucket_id = 'reports'
+  and auth.uid()::text = (storage.foldername(name))[1]
+);
+
+create policy "Users manage own interview audio files" on storage.objects for all using (
+  bucket_id = 'interview-audio'
+  and auth.uid()::text = (storage.foldername(name))[1]
+) with check (
+  bucket_id = 'interview-audio'
   and auth.uid()::text = (storage.foldername(name))[1]
 );

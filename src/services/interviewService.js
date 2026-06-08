@@ -1,6 +1,7 @@
 import { history as demoHistory } from '../data/mockData.js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import { createActivity } from './activityService.js'
+import { assertUsageAllowed, trackUsage } from './usageService.js'
 
 export async function listInterviews(userId) {
   if (!isSupabaseConfigured) return demoHistory
@@ -21,7 +22,7 @@ export async function listInterviews(userId) {
   }))
 }
 
-export async function completeInterview({ userId, role, durationSeconds, transcript, questions }) {
+export async function completeInterview({ userId, role, durationSeconds, transcript, questions, audioBlob }) {
   const transcriptText = Array.isArray(transcript) ? transcript.join('\n') : transcript
   let feedback = null
 
@@ -41,6 +42,17 @@ export async function completeInterview({ userId, role, durationSeconds, transcr
   }
 
   if (!userId) return { score: null, feedback }
+  await assertUsageAllowed(userId, 'mock_interview')
+
+  let audioPath = null
+  if (audioBlob?.size) {
+    audioPath = `${userId}/${Date.now()}-${role.replace(/[^a-z0-9]+/gi, '-').toLowerCase()}-interview.webm`
+    const upload = await supabase.storage.from('interview-audio').upload(audioPath, audioBlob, {
+      contentType: audioBlob.type || 'audio/webm',
+      upsert: false
+    })
+    if (upload.error) throw upload.error
+  }
 
   try {
     const { data, error } = await supabase.functions.invoke('score-interview', {
@@ -69,6 +81,7 @@ export async function completeInterview({ userId, role, durationSeconds, transcr
       started_at: new Date(Date.now() - durationSeconds * 1000).toISOString(),
       completed_at: new Date().toISOString(),
       duration_seconds: durationSeconds,
+      audio_path: audioPath,
       overall_score: feedback?.overall_score ?? null
     })
     .select('*')
@@ -89,7 +102,9 @@ export async function completeInterview({ userId, role, durationSeconds, transcr
       interview_id: interview.id,
       ...feedback
     })
+    await trackUsage(userId, 'feedback_report', { interview_id: interview.id })
   }
+  await trackUsage(userId, 'mock_interview', { interview_id: interview.id, status: interview.status })
   await createActivity(userId, 'mock', `Completed mock interview for ${role}`, { interview_id: interview.id })
   return { score: feedback?.overall_score ?? null, interview, feedback }
 }

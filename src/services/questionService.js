@@ -1,5 +1,6 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import { createActivity } from './activityService.js'
+import { assertUsageAllowed, trackUsage } from './usageService.js'
 
 const normalizeExperience = {
   'Entry-level': 'entry',
@@ -28,6 +29,7 @@ export async function generateQuestions({ userId, role, level, style, skills }) 
 
   if (!isSupabaseConfigured) return generated
   if (!userId) throw new Error('You must be signed in to generate questions.')
+  await assertUsageAllowed(userId, 'question_generation')
 
   const { data, error } = await supabase.functions.invoke('generate-questions', {
     body: { role, level, style, skills }
@@ -58,6 +60,7 @@ export async function generateQuestions({ userId, role, level, style, skills }) 
   }))
   const { error: questionError } = await supabase.from('generated_questions').insert(rows)
   if (questionError) throw questionError
+  await trackUsage(userId, 'question_generation', { question_set_id: set.id, role })
   await createActivity(userId, 'generator', `Generated ${generated.length} ${role} questions`, { question_set_id: set.id })
   return generated
 }

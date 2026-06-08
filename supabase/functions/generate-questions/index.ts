@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
     const { role, level, style, skills = [] } = await req.json()
     if (!role) return jsonResponse({ error: 'Missing role' }, 400)
 
-    const prompt = `Generate 5 interview questions for a ${level} ${role}. Style: ${style}. Skills: ${skills.join(', ')}.`
+    const prompt = `Generate 6 practical interview questions for a ${level} ${role}. Style: ${style}. Skills: ${skills.join(', ')}. Include a mix of technical depth, behavioral evidence, tradeoffs, and role-specific scenarios.`
     const apiKey = Deno.env.get('OPENAI_API_KEY')
 
     if (!apiKey) return jsonResponse({ error: 'OPENAI_API_KEY is not configured' }, 503)
@@ -22,7 +22,7 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
         messages: [
-          { role: 'system', content: 'Return only a JSON object with a questions string array.' },
+          { role: 'system', content: 'Return only valid JSON with a questions string array. Questions should be specific, realistic, and useful for mock interview practice.' },
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
@@ -31,6 +31,7 @@ Deno.serve(async (req) => {
     })
 
     const data = await response.json()
+    if (!response.ok) return jsonResponse({ error: data.error?.message || 'OpenAI question generation failed' }, response.status)
     const parsed = JSON.parse(data.choices?.[0]?.message?.content || '{"questions":[]}')
     return jsonResponse({ questions: parsed.questions || [] })
   } catch (error) {

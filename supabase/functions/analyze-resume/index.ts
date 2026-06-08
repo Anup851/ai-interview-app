@@ -20,14 +20,24 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
         messages: [
-          { role: 'system', content: 'Return JSON: ats_score number, strengths array, weaknesses array, suggestions array, keyword_matches object.' },
-          { role: 'user', content: `Target role: ${targetRole}\nResume:\n${resumeText}` }
+          {
+            role: 'system',
+            content: [
+              'You are an ATS and technical recruiting evaluator.',
+              'Return only valid JSON with keys: ats_score, strengths, weaknesses, suggestions, keyword_matches, raw_summary.',
+              'ats_score must be 0-100 and based on keyword match, target-role relevance, measurable impact, structure/readability, seniority fit, and missing skill risk.',
+              'strengths, weaknesses, and suggestions must be concise arrays of strings.',
+              'keyword_matches must be an object with matched, missing, and role_keywords arrays.'
+            ].join(' ')
+          },
+          { role: 'user', content: `Target role: ${targetRole}\n\nResume text:\n${resumeText.slice(0, 18000)}` }
         ],
         response_format: { type: 'json_object' }
       })
     })
 
     const data = await response.json()
+    if (!response.ok) return jsonResponse({ error: data.error?.message || 'OpenAI resume analysis failed' }, response.status)
     return jsonResponse(JSON.parse(data.choices?.[0]?.message?.content || '{}'))
   } catch (error) {
     return jsonResponse({ error: error.message || 'Resume analysis failed' }, 500)

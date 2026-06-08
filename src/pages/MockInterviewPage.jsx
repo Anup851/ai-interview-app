@@ -1,5 +1,5 @@
 import { Mic, Pause, SkipForward } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import Button from '../components/ui/Button.jsx'
 import Card from '../components/ui/Card.jsx'
 import Badge from '../components/ui/Badge.jsx'
@@ -18,6 +18,10 @@ export default function MockInterviewPage() {
   const [currentQuestions, setCurrentQuestions] = useState(isConfigured ? [] : questions)
   const [transcript, setTranscript] = useState([])
   const [answerDraft, setAnswerDraft] = useState('')
+  const [audioBlob, setAudioBlob] = useState(null)
+  const mediaRecorderRef = useRef(null)
+  const audioChunksRef = useRef([])
+  const streamRef = useRef(null)
   const hasQuestions = currentQuestions.length > 0
   const progress = hasQuestions ? ((current + 1) / currentQuestions.length) * 100 : 0
   const time = useMemo(() => `${String(Math.floor(seconds / 60)).padStart(2, '0')}:${String(seconds % 60).padStart(2, '0')}`, [seconds])
@@ -31,6 +35,12 @@ export default function MockInterviewPage() {
   }, [isConfigured, user?.id])
 
   useEffect(() => {
+    return () => {
+      streamRef.current?.getTracks().forEach((track) => track.stop())
+    }
+  }, [])
+
+  useEffect(() => {
     if (!recording) return undefined
     const timer = window.setInterval(() => setSeconds((value) => Math.max(0, value - 1)), 1000)
     return () => {
@@ -38,9 +48,61 @@ export default function MockInterviewPage() {
     }
   }, [recording])
 
-  const toggleRecording = () => {
-    setRecording((value) => !value)
-    pushToast(recording ? 'Recording paused.' : 'Recording started.')
+  const stopAudio = async () => {
+    const recorder = mediaRecorderRef.current
+    let nextBlob = audioBlob
+
+    if (recorder?.state === 'recording') {
+      nextBlob = await new Promise((resolve) => {
+        recorder.onstop = () => {
+          const blob = audioChunksRef.current.length
+            ? new Blob(audioChunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+            : null
+          setAudioBlob(blob)
+          resolve(blob)
+        }
+        recorder.stop()
+      })
+    }
+
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
+    return nextBlob
+  }
+
+  const startAudio = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || !window.MediaRecorder) {
+      pushToast('Audio recording is not supported in this browser. You can still type answers.', 'info')
+      return
+    }
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    streamRef.current = stream
+    audioChunksRef.current = []
+    const recorder = new MediaRecorder(stream)
+    mediaRecorderRef.current = recorder
+    recorder.ondataavailable = (event) => {
+      if (event.data.size > 0) audioChunksRef.current.push(event.data)
+    }
+    recorder.start()
+  }
+
+  const toggleRecording = async () => {
+    if (recording) {
+      await stopAudio()
+      setRecording(false)
+      pushToast('Recording paused.')
+      return
+    }
+
+    try {
+      await startAudio()
+    } catch (error) {
+      pushToast(error.message || 'Microphone permission was denied.', 'info')
+      return
+    }
+    setRecording(true)
+    pushToast('Recording started.')
   }
 
   const nextQuestion = async () => {
@@ -54,6 +116,7 @@ export default function MockInterviewPage() {
     setAnswerDraft('')
 
     if (current === currentQuestions.length - 1) {
+      const finalAudioBlob = await stopAudio()
       setRecording(false)
       try {
         const result = await completeInterview({
@@ -61,7 +124,8 @@ export default function MockInterviewPage() {
           role: profile?.target_role || 'Senior Frontend Engineer',
           durationSeconds: 12 * 60 + 48 - seconds,
           transcript: nextTranscript,
-          questions: currentQuestions
+          questions: currentQuestions,
+          audioBlob: finalAudioBlob || audioBlob
         })
         pushToast(result.score == null ? 'Mock interview saved. Feedback is pending review.' : `Mock interview completed. Feedback score: ${result.score}.`)
       } catch (error) {

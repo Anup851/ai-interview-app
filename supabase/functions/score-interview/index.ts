@@ -20,14 +20,24 @@ Deno.serve(async (req) => {
       body: JSON.stringify({
         model: 'gpt-4.1-mini',
         messages: [
-          { role: 'system', content: 'Score interview transcript. Return JSON with overall_score, communication_score, technical_score, confidence_score, feedback_cards, improvement_suggestions.' },
-          { role: 'user', content: `Role: ${role}\nTranscript:\n${transcript}` }
+          {
+            role: 'system',
+            content: [
+              'You are a senior interview coach and hiring-bar evaluator.',
+              'Return only valid JSON with keys: overall_score, communication_score, technical_score, confidence_score, feedback_cards, improvement_suggestions.',
+              'Scores must be 0-100.',
+              'feedback_cards must be an array of objects with title and text.',
+              'Evaluate structure, clarity, technical depth, tradeoffs, examples, confidence, and role fit.'
+            ].join(' ')
+          },
+          { role: 'user', content: `Role: ${role}\n\nTranscript:\n${transcript.slice(0, 18000)}` }
         ],
         response_format: { type: 'json_object' }
       })
     })
 
     const data = await response.json()
+    if (!response.ok) return jsonResponse({ error: data.error?.message || 'OpenAI interview scoring failed' }, response.status)
     return jsonResponse(JSON.parse(data.choices?.[0]?.message?.content || '{}'))
   } catch (error) {
     return jsonResponse({ error: error.message || 'Interview scoring failed' }, 500)
