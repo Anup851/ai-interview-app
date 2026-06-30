@@ -12,9 +12,11 @@ export async function listActivity(userId) {
     .limit(8)
   if (error) throw error
   return data.map((item) => ({
+    id: item.id,
     title: item.title,
     time: new Date(item.created_at).toLocaleDateString(),
-    type: item.type
+    type: item.type,
+    created_at: item.created_at
   }))
 }
 

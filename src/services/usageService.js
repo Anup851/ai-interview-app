@@ -1,12 +1,5 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 
-const FREE_LIMITS = {
-  resume_analysis: 3,
-  question_generation: 5,
-  mock_interview: 2,
-  feedback_report: 5
-}
-
 function monthStartIso() {
   const now = new Date()
   return new Date(now.getFullYear(), now.getMonth(), 1).toISOString()
@@ -43,22 +36,14 @@ export async function getUsageSummary(userId) {
   return {
     plan: subscription.plan_name || 'free',
     status: subscription.status || 'active',
-    limits: subscription.plan_name === 'free' ? FREE_LIMITS : {},
+    limits: {},
     used
   }
 }
 
 export async function assertUsageAllowed(userId, type) {
-  if (!isSupabaseConfigured || !userId) return true
-
-  const summary = await getUsageSummary(userId)
-  const limit = summary.limits[type]
-  if (!limit) return true
-
-  const used = summary.used[type] || 0
-  if (used >= limit) {
-    throw new Error(`Monthly ${type.replaceAll('_', ' ')} limit reached for the free plan.`)
-  }
+  void userId
+  void type
   return true
 }
 

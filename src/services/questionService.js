@@ -16,11 +16,11 @@ const normalizeStyle = {
   'System design': 'system_design'
 }
 
-export async function generateQuestions({ userId, role, level, style, skills }) {
+export async function generateQuestions({ userId, role, level, style, skills, company = '', difficulty = 'Standard' }) {
   if (!role.trim()) throw new Error('Add a job role before generating questions.')
 
   let generated = [
-    `For a ${level.toLowerCase()} ${role}, explain how you would approach a ${style.toLowerCase()} interview question involving ${skills.join(', ') || 'core role skills'}.`,
+    `For a ${level.toLowerCase()} ${role}${company ? ` at ${company}` : ''}, explain how you would approach a ${style.toLowerCase()} interview question involving ${skills.join(', ') || 'core role skills'}.`,
     `What is the most complex ${skills[0] || 'technical'} problem you solved, and what tradeoffs did you consider?`,
     `Tell me about a time you used ${skills[1] || 'collaboration'} to improve business or product outcomes.`,
     `Design a practical roadmap for your first 30 days as a ${role}.`,
@@ -32,7 +32,7 @@ export async function generateQuestions({ userId, role, level, style, skills }) 
   await assertUsageAllowed(userId, 'question_generation')
 
   const { data, error } = await supabase.functions.invoke('generate-questions', {
-    body: { role, level, style, skills }
+    body: { role, level, style, skills, company, difficulty }
   })
   if (error || data?.error) throw new Error(data?.error || error?.message || 'Question generation failed.')
   if (!data?.questions?.length) throw new Error('No questions were generated.')
@@ -60,22 +60,22 @@ export async function generateQuestions({ userId, role, level, style, skills }) 
   }))
   const { error: questionError } = await supabase.from('generated_questions').insert(rows)
   if (questionError) throw questionError
-  await trackUsage(userId, 'question_generation', { question_set_id: set.id, role })
-  await createActivity(userId, 'generator', `Generated ${generated.length} ${role} questions`, { question_set_id: set.id })
+  await trackUsage(userId, 'question_generation', { question_set_id: set.id, role, company, difficulty })
+  await createActivity(userId, 'generator', `Generated ${generated.length} ${role} questions${company ? ` for ${company}` : ''}`, { question_set_id: set.id, company, difficulty })
   return generated
 }
 
-export async function listLatestQuestions(userId) {
-  if (!isSupabaseConfigured || !userId) return []
+export async function getLatestQuestionSet(userId) {
+  if (!isSupabaseConfigured || !userId) return null
 
   const { data: sets, error: setError } = await supabase
     .from('question_sets')
-    .select('id, job_role')
+    .select('*')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
     .limit(1)
   if (setError) throw setError
-  if (!sets?.length) return []
+  if (!sets?.length) return null
 
   const { data, error } = await supabase
     .from('generated_questions')
@@ -84,5 +84,10 @@ export async function listLatestQuestions(userId) {
     .order('position', { ascending: true })
   if (error) throw error
 
-  return data.map((item) => item.question)
+  return { ...sets[0], questions: data.map((item) => item.question) }
+}
+
+export async function listLatestQuestions(userId) {
+  const set = await getLatestQuestionSet(userId)
+  return set?.questions || []
 }

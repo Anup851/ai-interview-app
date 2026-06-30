@@ -4,6 +4,10 @@ import { createActivity } from './activityService.js'
 import { assertUsageAllowed, trackUsage } from './usageService.js'
 import { extractPdfText } from '../utils/pdfText.js'
 
+function isPdf(file) {
+  return file?.type === 'application/pdf' || file?.name?.toLowerCase().endsWith('.pdf')
+}
+
 function normalizeAnalysis(data) {
   return {
     ats_score: Math.max(0, Math.min(100, Number(data?.ats_score) || 0)),
@@ -15,9 +19,9 @@ function normalizeAnalysis(data) {
   }
 }
 
-export async function uploadResumeAndAnalyze({ userId, file }) {
+export async function uploadResumeAndAnalyze({ userId, file, targetDescription = '' }) {
   if (!file) throw new Error('Choose a PDF resume.')
-  if (file.type !== 'application/pdf') throw new Error('Please upload a PDF resume.')
+  if (!isPdf(file)) throw new Error('Please upload a PDF resume.')
 
   const demoAnalysis = {
     ats_score: 91,
@@ -69,7 +73,8 @@ export async function uploadResumeAndAnalyze({ userId, file }) {
   const { data: aiData, error: aiError } = await supabase.functions.invoke('analyze-resume', {
     body: {
       resumeText: extractedText,
-      targetRole: profile?.target_role || 'Software Engineer'
+      targetRole: profile?.target_role || 'Software Engineer',
+      targetDescription
     }
   })
 

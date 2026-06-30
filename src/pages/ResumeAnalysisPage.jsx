@@ -1,4 +1,4 @@
-import { FileText, UploadCloud } from 'lucide-react'
+import { Download, FileText, UploadCloud } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 import Card from '../components/ui/Card.jsx'
 import Button from '../components/ui/Button.jsx'
@@ -8,6 +8,7 @@ import { strengths as demoStrengths, suggestions as demoSuggestions, weaknesses 
 import { useToast } from '../context/ToastContext.jsx'
 import { useAuth } from '../context/AuthContext.jsx'
 import { getActiveResume, uploadResumeAndAnalyze } from '../services/resumeService.js'
+import { downloadTextFile } from '../utils/download.js'
 
 export default function ResumeAnalysisPage() {
   const inputRef = useRef(null)
@@ -19,6 +20,7 @@ export default function ResumeAnalysisPage() {
   const [strengths, setStrengths] = useState(isConfigured ? [] : demoStrengths)
   const [weaknesses, setWeaknesses] = useState(isConfigured ? [] : demoWeaknesses)
   const [suggestions, setSuggestions] = useState(isConfigured ? [] : demoSuggestions)
+  const [targetDescription, setTargetDescription] = useState('')
   const [analysisStatus, setAnalysisStatus] = useState(isConfigured ? 'pending' : 'completed')
   const [analyzing, setAnalyzing] = useState(false)
   const [dragging, setDragging] = useState(false)
@@ -42,7 +44,7 @@ export default function ResumeAnalysisPage() {
 
   const startUpload = async (file) => {
     if (!file) return
-    if (file.type !== 'application/pdf') {
+    if (file.type !== 'application/pdf' && !file.name?.toLowerCase().endsWith('.pdf')) {
       pushToast('Please upload a PDF resume.', 'info')
       return
     }
@@ -56,7 +58,7 @@ export default function ResumeAnalysisPage() {
       })
     }, 180)
     try {
-      const result = await uploadResumeAndAnalyze({ userId: user?.id, file })
+      const result = await uploadResumeAndAnalyze({ userId: user?.id, file, targetDescription })
       setScore(result.analysis.ats_score)
       setAnalysisStatus(result.analysis.status || 'completed')
       setStrengths(result.analysis.strengths)
@@ -80,9 +82,31 @@ export default function ResumeAnalysisPage() {
     startUpload(event.dataTransfer.files[0])
   }
 
+  const downloadResumeReport = () => {
+    const report = [
+      'PrepPilot Resume Match Report',
+      '',
+      `Resume: ${fileName || 'No resume uploaded'}`,
+      `ATS Score: ${score}`,
+      `Status: ${analysisStatus}`,
+      targetDescription ? `Job Description: ${targetDescription}` : '',
+      '',
+      'Strengths',
+      ...strengths.map((item) => `- ${item}`),
+      '',
+      'Weaknesses',
+      ...weaknesses.map((item) => `- ${item}`),
+      '',
+      'Suggestions',
+      ...suggestions.map((item) => `- ${item}`)
+    ].filter((line) => line !== '').join('\n')
+    downloadTextFile('preppilot-resume-report.txt', report)
+    pushToast('Resume report downloaded.')
+  }
+
   return (
     <div className="grid gap-6">
-      <header><h1 className="text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">Resume Analysis</h1><p className="mt-2 text-zinc-500 dark:text-zinc-400">Upload a PDF resume and get ATS scoring, keyword coverage, and rewrite guidance.</p></header>
+      <header className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between"><div><h1 className="text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">Resume Analysis</h1><p className="mt-2 text-zinc-500 dark:text-zinc-400">Upload a PDF resume and get ATS scoring, keyword coverage, and rewrite guidance.</p></div><Button variant="outline" icon={Download} onClick={downloadResumeReport} disabled={!fileName}>Download Report</Button></header>
       <section className="grid gap-6 xl:grid-cols-[1fr_.9fr]">
         <Card>
           <div
@@ -94,12 +118,13 @@ export default function ResumeAnalysisPage() {
             <UploadCloud className="h-10 w-10 text-primary" />
             <h2 className="mt-4 text-xl font-extrabold text-zinc-950 dark:text-white">Drop your PDF resume here</h2>
             <p className="mt-2 max-w-md text-sm text-zinc-600 dark:text-zinc-400">{fileName ? `Selected: ${fileName}` : 'PDF up to 8MB. Drag and drop or browse from your device.'}</p>
-            <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={(event) => startUpload(event.target.files[0])} />
+            <input ref={inputRef} type="file" accept="application/pdf" className="hidden" onChange={(event) => { startUpload(event.target.files[0]); event.target.value = '' }} />
             <Button className="mt-5" onClick={() => inputRef.current?.click()} loading={analyzing}>Choose PDF</Button>
           </div>
+          <textarea className="mt-5 min-h-28 w-full rounded-lg border border-zinc-200 bg-white px-4 py-3 text-sm font-medium text-zinc-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-zinc-950 dark:text-white" placeholder="Paste a job description to score this resume against a specific role" value={targetDescription} onChange={(event) => setTargetDescription(event.target.value)} />
           <div className="mt-6"><div className="flex items-center justify-between text-sm font-bold"><span>{analyzing ? 'Analyzing resume' : 'Upload progress'}</span><span>{progress}%</span></div><div className="mt-2 h-3 rounded-full bg-zinc-100 dark:bg-white/10"><div className="h-3 rounded-full bg-gradient-to-r from-primary to-secondary transition-all duration-300" style={{ width: `${progress}%` }} /></div></div>
         </Card>
-        <Card className="grid place-items-center text-center"><ProgressRing value={score} label="ATS" /><h2 className="mt-5 text-xl font-extrabold text-zinc-950 dark:text-white">{analysisStatus === 'failed' ? 'Analysis failed' : score ? (score >= 90 ? 'Excellent match' : 'Strong match') : 'No score yet'}</h2><p className="mt-2 text-sm text-zinc-500">{analysisStatus === 'failed' ? 'Check your OpenAI key and function deployment, then try again.' : score ? 'Score from your latest resume analysis.' : 'Upload a resume to create your first ATS score.'}</p></Card>
+        <Card className="grid place-items-center text-center"><ProgressRing value={score} label="ATS" /><h2 className="mt-5 text-xl font-extrabold text-zinc-950 dark:text-white">{analysisStatus === 'failed' ? 'Analysis failed' : score ? (score >= 90 ? 'Excellent match' : 'Strong match') : 'No score yet'}</h2><p className="mt-2 text-sm text-zinc-500">{analysisStatus === 'failed' ? 'Check your Sarvam AI key and function deployment, then try again.' : score ? 'Score from your latest resume analysis.' : 'Upload a resume to create your first ATS score.'}</p></Card>
       </section>
       <section className="grid gap-6 lg:grid-cols-3">
         <InsightList title="Strengths" items={strengths} color="emerald" />

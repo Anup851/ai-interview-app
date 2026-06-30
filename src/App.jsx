@@ -16,6 +16,11 @@ import MockInterviewPage from './pages/MockInterviewPage.jsx'
 import FeedbackPage from './pages/FeedbackPage.jsx'
 import HistoryPage from './pages/HistoryPage.jsx'
 import ProfilePage from './pages/ProfilePage.jsx'
+import PracticePlanPage from './pages/PracticePlanPage.jsx'
+import StoryBankPage from './pages/StoryBankPage.jsx'
+import JobTrackerPage from './pages/JobTrackerPage.jsx'
+import DrillLabPage from './pages/DrillLabPage.jsx'
+import DSAPracticePage from './pages/DSAPracticePage.jsx'
 
 export default function App() {
   return (
@@ -35,6 +40,11 @@ export default function App() {
               <Route path="mock" element={<MockInterviewPage />} />
               <Route path="feedback" element={<FeedbackPage />} />
               <Route path="history" element={<HistoryPage />} />
+              <Route path="plan" element={<PracticePlanPage />} />
+              <Route path="stories" element={<StoryBankPage />} />
+              <Route path="jobs" element={<JobTrackerPage />} />
+              <Route path="drills" element={<DrillLabPage />} />
+              <Route path="dsa" element={<DSAPracticePage />} />
               <Route path="profile" element={<ProfilePage />} />
             </Route>
             <Route path="*" element={<Navigate to="/" replace />} />

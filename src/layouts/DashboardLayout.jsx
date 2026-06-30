@@ -1,5 +1,5 @@
 import { NavLink, Outlet } from 'react-router-dom'
-import { BarChart3, Bot, FileText, History, LayoutDashboard, LogOut, MessageSquareText, Mic, UserRound } from 'lucide-react'
+import { BarChart3, BookMarked, Bot, BriefcaseBusiness, CalendarCheck, Code2, Dumbbell, FileText, History, LayoutDashboard, LogOut, MessageSquareText, Mic, UserRound } from 'lucide-react'
 import Logo from '../components/common/Logo.jsx'
 import ThemeToggle from '../components/common/ThemeToggle.jsx'
 import { cn } from '../utils/cn.js'
@@ -12,6 +12,11 @@ const navItems = [
   { to: '/app/mock', label: 'Mock Interview', icon: Mic },
   { to: '/app/feedback', label: 'AI Feedback', icon: MessageSquareText },
   { to: '/app/history', label: 'History', icon: History },
+  { to: '/app/plan', label: 'Practice Plan', icon: CalendarCheck },
+  { to: '/app/stories', label: 'Story Bank', icon: BookMarked },
+  { to: '/app/jobs', label: 'Job Tracker', icon: BriefcaseBusiness },
+  { to: '/app/drills', label: 'Drill Lab', icon: Dumbbell },
+  { to: '/app/dsa', label: 'DSA Coach', icon: Code2 },
   { to: '/app/profile', label: 'Profile', icon: UserRound }
 ]
 
@@ -28,7 +33,7 @@ export default function DashboardLayout() {
         </nav>
         <div className="absolute bottom-4 left-4 right-4 rounded-lg bg-gradient-to-br from-primary to-secondary p-4 text-white shadow-glow">
           <BarChart3 className="h-5 w-5" />
-          <p className="mt-3 text-sm font-bold">Interview readiness is up 24% this month.</p>
+          <p className="mt-3 text-sm font-bold">Prep signal improves as you connect resumes, mocks, stories, and target jobs.</p>
         </div>
       </aside>
       <div className="lg:pl-72">

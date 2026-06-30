@@ -37,7 +37,35 @@ export default function HistoryPage() {
   }, [records, query, role, sort])
 
   const downloadReport = (item) => {
-    const report = `PrepPilot Interview Report\n\nRole: ${item.role}\nDate: ${item.date}\nScore: ${item.score}\nDuration: ${item.duration}\nStatus: ${item.status}`
+    const feedback = item.feedback
+    const answers = item.answers || []
+    const feedbackCards = feedback?.feedback_cards || []
+    const suggestions = feedback?.improvement_suggestions || []
+    const report = [
+      'PrepPilot Interview Report',
+      '',
+      `Role: ${item.role}`,
+      `Date: ${item.date}`,
+      `Score: ${item.score}`,
+      `Duration: ${item.duration}`,
+      `Status: ${item.status}`,
+      feedback ? `Communication: ${feedback.communication_score}` : '',
+      feedback ? `Technical: ${feedback.technical_score}` : '',
+      feedback ? `Confidence: ${feedback.confidence_score}` : '',
+      '',
+      'Feedback',
+      ...feedbackCards.map((card) => `- ${card.title}: ${card.text}`),
+      '',
+      'Suggestions',
+      ...suggestions.map((suggestion) => `- ${suggestion}`),
+      '',
+      'Answers',
+      ...answers.flatMap((answer) => [
+        `Q${answer.position}: ${answer.question}`,
+        `Answer (${answer.answer_seconds}s): ${answer.transcript || 'No answer saved.'}`,
+        ''
+      ])
+    ].filter((line) => line !== '').join('\n')
     downloadTextFile(`${item.role.replaceAll(' ', '-')}-report.txt`, report)
     pushToast('Report downloaded.')
   }
@@ -48,7 +76,7 @@ export default function HistoryPage() {
       <Card><div className="grid gap-4 lg:grid-cols-[1fr_220px_220px]"><Input icon={Search} placeholder="Search interviews" value={query} onChange={(event) => setQuery(event.target.value)} /><Select value={role} onChange={(event) => setRole(event.target.value)}><option>All roles</option><option>Frontend Engineer</option><option>Product Manager</option><option>Data Analyst</option><option>Backend Engineer</option></Select><Select value={sort} onChange={(event) => setSort(event.target.value)}><option>Newest first</option><option>Highest score</option><option>Oldest first</option></Select></div></Card>
       <Card className="overflow-hidden p-0"><div className="overflow-x-auto"><table className="w-full min-w-[720px] text-left text-sm"><thead className="border-b border-zinc-200 bg-zinc-50 text-xs uppercase tracking-wider text-zinc-500 dark:border-white/10 dark:bg-white/5"><tr><th className="px-5 py-4">Role</th><th className="px-5 py-4">Date</th><th className="px-5 py-4">Score</th><th className="px-5 py-4">Duration</th><th className="px-5 py-4">Status</th><th className="px-5 py-4 text-right">Report</th></tr></thead><tbody className="divide-y divide-zinc-200 dark:divide-white/10">{filtered.map((item) => <tr key={`${item.role}-${item.date}`} className="hover:bg-zinc-50 dark:hover:bg-white/5"><td className="px-5 py-4"><button onClick={() => setSelected(item)} className="font-bold text-zinc-950 underline-offset-4 hover:text-primary hover:underline dark:text-white">{item.role}</button></td><td className="px-5 py-4 text-zinc-500">{item.date}</td><td className="px-5 py-4 font-extrabold text-primary">{item.score}</td><td className="px-5 py-4 text-zinc-500">{item.duration}</td><td className="px-5 py-4"><Badge color={item.status === 'Completed' ? 'emerald' : 'amber'}>{item.status}</Badge></td><td className="px-5 py-4 text-right"><Button size="sm" variant="outline" icon={Download} onClick={() => downloadReport(item)}>Download</Button></td></tr>)}</tbody></table>{filtered.length === 0 ? <p className="p-5 text-sm font-medium text-zinc-500 dark:text-zinc-400">No interviews found for this user yet.</p> : null}</div></Card>
       <Modal open={Boolean(selected)} onClose={() => setSelected(null)} title="Interview report">
-        {selected ? <div className="grid gap-3 text-sm text-zinc-600 dark:text-zinc-300"><p><strong className="text-zinc-950 dark:text-white">Role:</strong> {selected.role}</p><p><strong className="text-zinc-950 dark:text-white">Score:</strong> {selected.score}</p><p><strong className="text-zinc-950 dark:text-white">Status:</strong> {selected.status}</p><Button icon={Download} onClick={() => downloadReport(selected)}>Download report</Button></div> : null}
+        {selected ? <div className="grid gap-4 text-sm text-zinc-600 dark:text-zinc-300"><p><strong className="text-zinc-950 dark:text-white">Role:</strong> {selected.role}</p><p><strong className="text-zinc-950 dark:text-white">Score:</strong> {selected.score}</p><p><strong className="text-zinc-950 dark:text-white">Status:</strong> {selected.status}</p>{selected.feedback ? <div className="grid gap-2 rounded-lg bg-zinc-50 p-3 dark:bg-white/5"><p><strong className="text-zinc-950 dark:text-white">Communication:</strong> {selected.feedback.communication_score}</p><p><strong className="text-zinc-950 dark:text-white">Technical:</strong> {selected.feedback.technical_score}</p><p><strong className="text-zinc-950 dark:text-white">Confidence:</strong> {selected.feedback.confidence_score}</p></div> : null}<div className="grid max-h-64 gap-2 overflow-y-auto">{selected.answers?.length ? selected.answers.map((answer) => <div key={answer.id} className="rounded-lg bg-zinc-50 p-3 dark:bg-white/5"><p className="font-bold text-zinc-950 dark:text-white">Q{answer.position}: {answer.question}</p><p className="mt-2">{answer.transcript || 'No answer saved.'}</p></div>) : <p>No saved answers for this report.</p>}</div><Button icon={Download} onClick={() => downloadReport(selected)}>Download report</Button></div> : null}
       </Modal>
     </div>
   )

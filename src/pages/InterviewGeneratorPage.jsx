@@ -15,7 +15,9 @@ const skills = ['React', 'Node.js', 'System Design', 'Leadership', 'SQL', 'AI Pr
 export default function InterviewGeneratorPage() {
   const [selected, setSelected] = useState(['React', 'System Design'])
   const [role, setRole] = useState('Senior Frontend Engineer')
+  const [company, setCompany] = useState('')
   const [level, setLevel] = useState('Senior')
+  const [difficulty, setDifficulty] = useState('Standard')
   const [style, setStyle] = useState('Balanced')
   const { user, isConfigured } = useAuth()
   const [generated, setGenerated] = useState(isConfigured ? [] : questions)
@@ -30,7 +32,7 @@ export default function InterviewGeneratorPage() {
   const generateQuestions = async () => {
     setLoading(true)
     try {
-      const nextQuestions = await generateQuestionSet({ userId: user?.id, role, level, style, skills: selected })
+      const nextQuestions = await generateQuestionSet({ userId: user?.id, role, level, style, skills: selected, company, difficulty })
       setGenerated(nextQuestions)
       pushToast(`Generated ${nextQuestions.length} role-specific interview questions.`)
     } catch (error) {
@@ -44,7 +46,8 @@ export default function InterviewGeneratorPage() {
     <div className="grid gap-6">
       <header><h1 className="text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">AI Interview Generator</h1><p className="mt-2 text-zinc-500 dark:text-zinc-400">Create targeted questions from role, seniority, and skill signals.</p></header>
       <Card>
-        <div className="grid gap-4 lg:grid-cols-3"><Input label="Job role" placeholder="Senior Frontend Engineer" value={role} onChange={(event) => setRole(event.target.value)} /><Select label="Experience level" value={level} onChange={(event) => setLevel(event.target.value)}><option>Mid-level</option><option>Senior</option><option>Lead</option><option>Entry-level</option></Select><Select label="Question style" value={style} onChange={(event) => setStyle(event.target.value)}><option>Balanced</option><option>Technical deep dive</option><option>Behavioral</option><option>System design</option></Select></div>
+        <div className="grid gap-4 lg:grid-cols-2"><Input label="Job role" placeholder="Senior Frontend Engineer" value={role} onChange={(event) => setRole(event.target.value)} /><Input label="Company target" placeholder="Google, startup, fintech..." value={company} onChange={(event) => setCompany(event.target.value)} /></div>
+        <div className="mt-4 grid gap-4 lg:grid-cols-3"><Select label="Experience level" value={level} onChange={(event) => setLevel(event.target.value)}><option>Mid-level</option><option>Senior</option><option>Lead</option><option>Entry-level</option></Select><Select label="Question style" value={style} onChange={(event) => setStyle(event.target.value)}><option>Balanced</option><option>Technical deep dive</option><option>Behavioral</option><option>System design</option></Select><Select label="Difficulty" value={difficulty} onChange={(event) => setDifficulty(event.target.value)}><option>Standard</option><option>Challenging</option><option>Staff-level</option><option>Rapid-fire</option></Select></div>
         <div className="mt-5"><p className="mb-3 text-sm font-bold text-zinc-800 dark:text-zinc-100">Skills</p><div className="flex flex-wrap gap-2">{skills.map((skill) => <button key={skill} onClick={() => setSelected((items) => items.includes(skill) ? items.filter((item) => item !== skill) : [...items, skill])} className={`focus-ring rounded-full px-3 py-2 text-sm font-bold transition ${selected.includes(skill) ? 'bg-primary text-white' : 'bg-zinc-100 text-zinc-700 dark:bg-white/10 dark:text-zinc-200'}`}>{skill}</button>)}</div></div>
         <Button className="mt-6" icon={Wand2} onClick={generateQuestions} loading={loading}>Generate Questions</Button>
       </Card>

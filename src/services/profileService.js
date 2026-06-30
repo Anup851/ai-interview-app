@@ -1,9 +1,13 @@
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
 import { createActivity } from './activityService.js'
 
+function isPdf(file) {
+  return file?.type === 'application/pdf' || file?.name?.toLowerCase().endsWith('.pdf')
+}
+
 export async function uploadProfileResume({ userId, file }) {
   if (!file) return null
-  if (file.type !== 'application/pdf') throw new Error('Please upload a PDF resume.')
+  if (!isPdf(file)) throw new Error('Please upload a PDF resume.')
   if (!isSupabaseConfigured || !userId) return { file_name: file.name }
 
   const filePath = `${userId}/${Date.now()}-${file.name}`
@@ -22,4 +26,3 @@ export async function uploadProfileResume({ userId, file }) {
   await createActivity(userId, 'profile', 'Uploaded a new active resume', { resume_id: data.id })
   return data
 }
-

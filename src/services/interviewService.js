@@ -8,7 +8,7 @@ export async function listInterviews(userId) {
   if (!userId) return []
   const { data, error } = await supabase
     .from('mock_interviews')
-    .select('*')
+    .select('*, ai_feedback(*), interview_answers(*)')
     .eq('user_id', userId)
     .order('created_at', { ascending: false })
   if (error) throw error
@@ -18,11 +18,13 @@ export async function listInterviews(userId) {
     date: new Date(item.created_at).toLocaleDateString(),
     score: item.overall_score || 0,
     duration: `${Math.max(1, Math.round(item.duration_seconds / 60))} min`,
-    status: item.status === 'needs_review' ? 'Needs review' : item.status === 'completed' ? 'Completed' : 'In progress'
+    status: item.status === 'needs_review' ? 'Needs review' : item.status === 'completed' ? 'Completed' : 'In progress',
+    feedback: Array.isArray(item.ai_feedback) ? item.ai_feedback[0] : null,
+    answers: (item.interview_answers || []).sort((a, b) => a.position - b.position)
   }))
 }
 
-export async function completeInterview({ userId, role, durationSeconds, transcript, questions, audioBlob }) {
+export async function completeInterview({ userId, role, durationSeconds, transcript, questions, audioBlob, answerDurations = [], questionSetId = null }) {
   const transcriptText = Array.isArray(transcript) ? transcript.join('\n') : transcript
   let feedback = null
 
@@ -76,6 +78,7 @@ export async function completeInterview({ userId, role, durationSeconds, transcr
     .from('mock_interviews')
     .insert({
       user_id: userId,
+      question_set_id: questionSetId,
       role,
       status: feedback ? 'completed' : 'needs_review',
       started_at: new Date(Date.now() - durationSeconds * 1000).toISOString(),
@@ -92,16 +95,18 @@ export async function completeInterview({ userId, role, durationSeconds, transcr
     interview_id: interview.id,
     question,
     transcript: transcript[index] || transcript.join('\n'),
-    answer_seconds: Math.round(durationSeconds / Math.max(1, questions.length)),
+    answer_seconds: answerDurations[index] || Math.round(durationSeconds / Math.max(1, questions.length)),
     position: index + 1
   }))
-  await supabase.from('interview_answers').insert(answers)
+  const { error: answersError } = await supabase.from('interview_answers').insert(answers)
+  if (answersError) throw answersError
   if (feedback) {
-    await supabase.from('ai_feedback').insert({
+    const { error: feedbackError } = await supabase.from('ai_feedback').insert({
       user_id: userId,
       interview_id: interview.id,
       ...feedback
     })
+    if (feedbackError) throw feedbackError
     await trackUsage(userId, 'feedback_report', { interview_id: interview.id })
   }
   await trackUsage(userId, 'mock_interview', { interview_id: interview.id, status: interview.status })

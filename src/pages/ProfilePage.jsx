@@ -10,7 +10,6 @@ import { useAuth } from '../context/AuthContext.jsx'
 import { uploadProfileResume } from '../services/profileService.js'
 import { getActiveResume } from '../services/resumeService.js'
 import { getUsageSummary } from '../services/usageService.js'
-import { startProCheckout } from '../services/billingService.js'
 
 export default function ProfilePage() {
   const fileRef = useRef(null)
@@ -75,14 +74,6 @@ export default function ProfilePage() {
     }
   }
 
-  const upgradePlan = async () => {
-    try {
-      await startProCheckout()
-    } catch (error) {
-      pushToast(error.message || 'Could not start checkout.', 'info')
-    }
-  }
-
   return (
     <div className="grid gap-6">
       <header><h1 className="text-3xl font-extrabold tracking-tight text-zinc-950 dark:text-white">User Profile</h1><p className="mt-2 text-zinc-500 dark:text-zinc-400">Manage identity, resumes, preferences, and workspace settings.</p></header>
@@ -91,7 +82,7 @@ export default function ProfilePage() {
         <div className="grid gap-6">
           <Card><div className="flex items-center gap-3"><FileText className="h-5 w-5 text-primary" /><h2 className="text-lg font-extrabold">Resume management</h2></div><div className="mt-5 grid gap-3"><div className="flex items-center justify-between rounded-lg bg-zinc-50 p-4 dark:bg-white/5"><div><p className="font-bold">{resume || 'No active resume'}</p><p className="text-sm text-zinc-500">{resume ? 'Saved to your account' : 'Upload a PDF to set one active resume'}</p></div>{resume ? <Badge color="emerald">Active</Badge> : <Badge color="zinc">Empty</Badge>}</div><input ref={fileRef} type="file" accept="application/pdf" className="hidden" onChange={updateResume} /><Button variant="outline" onClick={() => fileRef.current?.click()}>Upload new resume</Button></div></Card>
           <Card><div className="flex items-center gap-3"><Settings className="h-5 w-5 text-primary" /><h2 className="text-lg font-extrabold">Settings</h2></div><div className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-zinc-50 p-4 dark:bg-white/5"><div><p className="font-bold">Theme switcher</p><p className="text-sm text-zinc-500">Toggle light and dark mode.</p></div><ThemeToggle /></div><div className="mt-3 flex flex-wrap items-center justify-between gap-4 rounded-lg bg-zinc-50 p-4 dark:bg-white/5"><div><p className="font-bold">Email reminders</p><p className="text-sm text-zinc-500">Weekly preparation summary.</p></div><input type="checkbox" checked={reminders} onChange={(event) => { setReminders(event.target.checked); pushToast(event.target.checked ? 'Email reminders enabled.' : 'Email reminders disabled.') }} className="h-5 w-5 rounded border-zinc-300 text-primary focus:ring-primary" /></div></Card>
-          <Card><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-extrabold">Plan usage</h2><Badge color={usage.plan === 'free' ? 'zinc' : 'emerald'}>{usage.plan}</Badge></div><div className="mt-5 grid gap-3">{Object.entries(usage.limits).length ? Object.entries(usage.limits).map(([type, limit]) => { const used = usage.used[type] || 0; return <div key={type} className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5"><div className="flex items-center justify-between text-sm font-bold"><span className="capitalize">{type.replaceAll('_', ' ')}</span><span>{used}/{limit}</span></div><div className="mt-2 h-2 rounded-full bg-zinc-100 dark:bg-white/10"><div className="h-2 rounded-full bg-gradient-to-r from-primary to-secondary" style={{ width: `${Math.min(100, (used / limit) * 100)}%` }} /></div></div> }) : <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Usage is unlimited for this plan.</p>}</div>{usage.plan === 'free' ? <Button className="mt-5 w-full" onClick={upgradePlan}>Upgrade to Pro</Button> : null}</Card>
+          <Card><div className="flex items-center justify-between gap-3"><h2 className="text-lg font-extrabold">Plan usage</h2><Badge color="emerald">Unlimited</Badge></div><div className="mt-5 grid gap-3">{Object.entries(usage.limits).length ? Object.entries(usage.limits).map(([type, limit]) => { const used = usage.used[type] || 0; return <div key={type} className="rounded-lg bg-zinc-50 p-4 dark:bg-white/5"><div className="flex items-center justify-between text-sm font-bold"><span className="capitalize">{type.replaceAll('_', ' ')}</span><span>{used}/{limit}</span></div><div className="mt-2 h-2 rounded-full bg-zinc-100 dark:bg-white/10"><div className="h-2 rounded-full bg-gradient-to-r from-primary to-secondary" style={{ width: `${Math.min(100, (used / limit) * 100)}%` }} /></div></div> }) : <p className="text-sm font-medium text-zinc-500 dark:text-zinc-400">Resume checks, question generation, mock interviews, and feedback reports are unlimited right now.</p>}</div></Card>
           <Button variant="outline" onClick={signOut}>Log out</Button>
         </div>
       </section>

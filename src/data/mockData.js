@@ -8,10 +8,10 @@ export const performanceData = [
 ]
 
 export const activity = [
-  { title: 'Generated 12 backend engineer questions', time: '18 minutes ago', type: 'Generator' },
-  { title: 'Completed mock interview for Product Analyst', time: 'Yesterday', type: 'Mock' },
-  { title: 'Resume ATS score improved to 91', time: '2 days ago', type: 'Resume' },
-  { title: 'Downloaded interview feedback report', time: '4 days ago', type: 'Report' }
+  { id: '1', title: 'Generated 12 backend engineer questions', time: '18 minutes ago', type: 'Generator' },
+  { id: '2', title: 'Completed mock interview for Product Analyst', time: 'Yesterday', type: 'Mock' },
+  { id: '3', title: 'Resume ATS score improved to 91', time: '2 days ago', type: 'Resume' },
+  { id: '4', title: 'Downloaded interview feedback report', time: '4 days ago', type: 'Report' }
 ]
 
 export const strengths = ['Clear impact metrics', 'Strong project ownership', 'Well-scoped technical skills', 'Concise role summaries']
