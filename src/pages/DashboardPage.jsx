@@ -26,6 +26,7 @@ export default function DashboardPage() {
   const navigate = useNavigate()
   const { user, profile, isConfigured } = useAuth()
   const [items, setItems] = useState(isConfigured ? [] : fallbackActivity)
+  const [streakState, setStreakState] = useState({ completedDates: [], goal: 'Finish one prep action today' })
   const [stats, setStats] = useState(isConfigured ? emptyStats : {
     metrics: {
       atsScore: 91,
@@ -35,16 +36,19 @@ export default function DashboardPage() {
     },
     trend: performanceData
   })
-  const [streak, setStreak] = useState(getStreak)
-
   useEffect(() => {
     listActivity(user?.id).then(setItems).catch(() => setItems(isConfigured ? [] : fallbackActivity))
     getDashboardStats(user?.id).then(setStats).catch(() => {})
+    if (!user?.id) {
+      setStreakState({ completedDates: [], goal: 'Finish one prep action today' })
+      return
+    }
+    getStreak(user.id).then(setStreakState).catch(() => setStreakState({ completedDates: [], goal: 'Finish one prep action today' }))
   }, [isConfigured, user?.id])
 
   const hasActivity = items.length > 0
-  const dailyDone = isTodayComplete(streak)
-  const currentStreak = streakCount(streak)
+  const dailyDone = isTodayComplete(streakState)
+  const currentStreak = streakCount(streakState)
   const hasLiveSignal = stats.metrics.atsScore > 0 || stats.metrics.averageInterviewScore > 0 || stats.metrics.interviewsCompleted > 0 || stats.metrics.practiceQuestions > 0
   const nextAction = !hasLiveSignal
     ? { title: 'Create your first prep signal', detail: 'Upload a resume or generate a question set so the workspace can give useful guidance.', to: '/app/resume' }
@@ -78,7 +82,7 @@ export default function DashboardPage() {
         <Button icon={ArrowRight} onClick={() => navigate(nextAction.to)}>Next Best Action</Button>
       </section>
       <section className="grid gap-4 lg:grid-cols-[1fr_.8fr]">
-        <Card><div className="flex items-start gap-4"><div className="grid h-11 w-11 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15"><Flame className="h-5 w-5" /></div><div className="flex-1"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-extrabold text-zinc-950 dark:text-white">Daily prep streak</h2><Badge color={dailyDone ? 'emerald' : 'amber'}>{currentStreak} day streak</Badge></div><input className="mt-3 h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-zinc-950 dark:text-white" value={streak.goal} onChange={(event) => setStreak(setDailyGoal(event.target.value))} /><Button className="mt-3" variant={dailyDone ? 'secondary' : 'outline'} icon={CheckCircle2} onClick={() => setStreak(completeToday())}>{dailyDone ? 'Completed Today' : 'Mark Today Done'}</Button></div></div></Card>
+        <Card><div className="flex items-start gap-4"><div className="grid h-11 w-11 place-items-center rounded-lg bg-amber-50 text-amber-600 dark:bg-amber-500/15"><Flame className="h-5 w-5" /></div><div className="flex-1"><div className="flex flex-wrap items-center justify-between gap-3"><h2 className="text-lg font-extrabold text-zinc-950 dark:text-white">Daily prep streak</h2><Badge color={dailyDone ? 'emerald' : 'amber'}>{currentStreak} day streak</Badge></div><input className="mt-3 h-11 w-full rounded-lg border border-zinc-200 bg-white px-3 text-sm font-semibold text-zinc-900 outline-none transition focus:border-primary focus:ring-4 focus:ring-violet-500/10 dark:border-white/10 dark:bg-zinc-950 dark:text-white" value={streakState.goal} onChange={async (event) => { const next = await setDailyGoal(user?.id, event.target.value); setStreakState(next) }} /><Button className="mt-3" variant={dailyDone ? 'secondary' : 'outline'} icon={CheckCircle2} onClick={async () => { const next = await completeToday(user?.id); setStreakState(next) }}>{dailyDone ? 'Completed Today' : 'Mark Today Done'}</Button></div></div></Card>
         <Card><h2 className="text-lg font-extrabold text-zinc-950 dark:text-white">Real usage loop</h2><p className="mt-2 text-sm leading-6 text-zinc-500">Track jobs, generate targeted questions, run mocks, save stories, and drill weak areas before each interview.</p><Button className="mt-4" variant="outline" onClick={() => navigate('/app/jobs')}>Open Job Tracker</Button></Card>
       </section>
       <section className="grid gap-6 xl:grid-cols-[1.6fr_.9fr]">

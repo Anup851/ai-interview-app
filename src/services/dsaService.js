@@ -1,4 +1,6 @@
 import { readLocalValue, writeLocalValue } from '../utils/localStore.js'
+import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
+import { createActivity } from './activityService.js'
 
 const PROGRESS_KEY = 'preppilot:dsa-progress'
 
@@ -59,12 +61,50 @@ export const dsaProblems = [
 
 export const difficulties = ['Easy', 'Medium', 'Hard']
 
-export function getDsaProgress() {
+function fallbackDsaProgress() {
   return readLocalValue(PROGRESS_KEY, { solved: [], attempts: {} })
 }
 
-export function saveDsaProgress(progress) {
-  writeLocalValue(PROGRESS_KEY, progress)
+export async function getDsaProgress(userId) {
+  if (!isSupabaseConfigured || !userId) return fallbackDsaProgress()
+
+  const { data, error } = await supabase
+    .from('user_dsa_progress')
+    .select('solved, attempts, updated_at')
+    .eq('user_id', userId)
+    .maybeSingle()
+  if (error) throw error
+  if (!data) return fallbackDsaProgress()
+  return {
+    solved: data.solved || [],
+    attempts: data.attempts || {},
+    updatedAt: data.updated_at
+  }
+}
+
+export async function saveDsaProgress(userId, progress) {
+  if (!isSupabaseConfigured || !userId) {
+    writeLocalValue(PROGRESS_KEY, progress)
+    return progress
+  }
+
+  const payload = {
+    user_id: userId,
+    solved: Array.isArray(progress.solved) ? progress.solved : [],
+    attempts: progress.attempts || {}
+  }
+
+  const { data, error } = await supabase
+    .from('user_dsa_progress')
+    .upsert(payload, { onConflict: 'user_id' })
+    .select('*')
+    .single()
+  if (error) throw error
+  return {
+    solved: data.solved || [],
+    attempts: data.attempts || {},
+    updatedAt: data.updated_at
+  }
 }
 
 export function getProblemsByDifficulty(difficulty) {
@@ -130,8 +170,8 @@ export function reviewDsaSubmission(problem, code, language) {
   }
 }
 
-export function recordDsaAttempt(problemId, result) {
-  const progress = getDsaProgress()
+export async function recordDsaAttempt(userId, problemId, result) {
+  const progress = await getDsaProgress(userId)
   const attempts = {
     ...progress.attempts,
     [problemId]: (progress.attempts?.[problemId] || 0) + 1
@@ -141,6 +181,11 @@ export function recordDsaAttempt(problemId, result) {
     : progress.solved
 
   const next = { solved, attempts }
-  saveDsaProgress(next)
-  return next
+  const saved = await saveDsaProgress(userId, next)
+  try {
+    await createActivity(userId, 'profile', result.accepted ? 'Solved a DSA problem' : 'Reviewed a DSA submission', { problem_id: problemId, accepted: result.accepted })
+  } catch {
+    // Ignore activity write failures so the primary DSA progress save still succeeds.
+  }
+  return saved
 }

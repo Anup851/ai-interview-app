@@ -158,6 +158,26 @@ create table if not exists public.activity_events (
   created_at timestamptz not null default now()
 );
 
+create table if not exists public.user_streaks (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  completed_dates text[] not null default '{}',
+  goal text not null default 'Finish one prep action today',
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id)
+);
+
+create table if not exists public.user_dsa_progress (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references public.profiles(id) on delete cascade,
+  solved text[] not null default '{}',
+  attempts jsonb not null default '{}'::jsonb,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  unique (user_id)
+);
+
 create table if not exists public.subscriptions (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(id) on delete cascade,
@@ -189,6 +209,8 @@ create index if not exists mock_interviews_user_id_idx on public.mock_interviews
 create index if not exists mock_interviews_created_at_idx on public.mock_interviews(created_at desc);
 create index if not exists ai_feedback_user_id_idx on public.ai_feedback(user_id);
 create index if not exists activity_events_user_id_created_at_idx on public.activity_events(user_id, created_at desc);
+create index if not exists user_streaks_user_id_idx on public.user_streaks(user_id);
+create index if not exists user_dsa_progress_user_id_idx on public.user_dsa_progress(user_id);
 create index if not exists subscriptions_user_id_idx on public.subscriptions(user_id);
 create index if not exists usage_events_user_id_created_at_idx on public.usage_events(user_id, created_at desc);
 
@@ -196,11 +218,15 @@ drop trigger if exists profiles_set_updated_at on public.profiles;
 drop trigger if exists resumes_set_updated_at on public.resumes;
 drop trigger if exists mock_interviews_set_updated_at on public.mock_interviews;
 drop trigger if exists subscriptions_set_updated_at on public.subscriptions;
+drop trigger if exists user_streaks_set_updated_at on public.user_streaks;
+drop trigger if exists user_dsa_progress_set_updated_at on public.user_dsa_progress;
 
 create trigger profiles_set_updated_at before update on public.profiles for each row execute function public.set_updated_at();
 create trigger resumes_set_updated_at before update on public.resumes for each row execute function public.set_updated_at();
 create trigger mock_interviews_set_updated_at before update on public.mock_interviews for each row execute function public.set_updated_at();
 create trigger subscriptions_set_updated_at before update on public.subscriptions for each row execute function public.set_updated_at();
+create trigger user_streaks_set_updated_at before update on public.user_streaks for each row execute function public.set_updated_at();
+create trigger user_dsa_progress_set_updated_at before update on public.user_dsa_progress for each row execute function public.set_updated_at();
 
 create or replace function public.handle_new_user()
 returns trigger
@@ -245,6 +271,8 @@ alter table public.mock_interviews enable row level security;
 alter table public.interview_answers enable row level security;
 alter table public.ai_feedback enable row level security;
 alter table public.activity_events enable row level security;
+alter table public.user_streaks enable row level security;
+alter table public.user_dsa_progress enable row level security;
 alter table public.subscriptions enable row level security;
 alter table public.usage_events enable row level security;
 
@@ -262,6 +290,8 @@ drop policy if exists "Users manage own interviews" on public.mock_interviews;
 drop policy if exists "Users manage answers for own interviews" on public.interview_answers;
 drop policy if exists "Users manage own feedback" on public.ai_feedback;
 drop policy if exists "Users manage own activity" on public.activity_events;
+drop policy if exists "Users manage own streak" on public.user_streaks;
+drop policy if exists "Users manage own dsa progress" on public.user_dsa_progress;
 drop policy if exists "Users read own subscriptions" on public.subscriptions;
 drop policy if exists "Users read own usage" on public.usage_events;
 drop policy if exists "Users insert own usage" on public.usage_events;
@@ -323,6 +353,8 @@ create policy "Users manage answers for own interviews" on public.interview_answ
 );
 create policy "Users manage own feedback" on public.ai_feedback for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users manage own activity" on public.activity_events for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage own streak" on public.user_streaks for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "Users manage own dsa progress" on public.user_dsa_progress for all using (auth.uid() = user_id) with check (auth.uid() = user_id);
 create policy "Users read own subscriptions" on public.subscriptions for select using (auth.uid() = user_id);
 create policy "Users read own usage" on public.usage_events for select using (auth.uid() = user_id);
 create policy "Users insert own usage" on public.usage_events for insert with check (auth.uid() = user_id);

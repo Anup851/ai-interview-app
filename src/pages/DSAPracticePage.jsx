@@ -1,5 +1,5 @@
 import { CheckCircle2, ChevronRight, Code2, RotateCcw, Send, XCircle } from 'lucide-react'
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import Prism from 'prismjs'
 import 'prismjs/components/prism-clike'
 import 'prismjs/components/prism-javascript'
@@ -10,6 +10,7 @@ import Badge from '../components/ui/Badge.jsx'
 import Button from '../components/ui/Button.jsx'
 import Select from '../components/ui/Select.jsx'
 import { useToast } from '../context/ToastContext.jsx'
+import { useAuth } from '../context/AuthContext.jsx'
 import { difficulties, getDsaProgress, getNextProblem, getProblemsByDifficulty, recordDsaAttempt, reviewDsaSubmission } from '../services/dsaService.js'
 
 const starterCode = {
@@ -52,14 +53,31 @@ function escapeHtml(value) {
 
 export default function DSAPracticePage() {
   const { pushToast } = useToast()
+  const { user } = useAuth()
   const [difficulty, setDifficulty] = useState('Easy')
   const problems = useMemo(() => getProblemsByDifficulty(difficulty), [difficulty])
   const [problemId, setProblemId] = useState(problems[0].id)
   const [language, setLanguage] = useState('JavaScript')
   const [code, setCode] = useState(starterCode.JavaScript)
   const [result, setResult] = useState(null)
-  const [progress, setProgress] = useState(getDsaProgress)
+  const [progress, setProgress] = useState({ solved: [], attempts: {} })
   const [editorScrollTop, setEditorScrollTop] = useState(0)
+
+  useEffect(() => {
+    let ignore = false
+    if (!user?.id) {
+      setProgress({ solved: [], attempts: {} })
+      return undefined
+    }
+    getDsaProgress(user.id).then((next) => {
+      if (!ignore) setProgress(next)
+    }).catch(() => {
+      if (!ignore) setProgress({ solved: [], attempts: {} })
+    })
+    return () => {
+      ignore = true
+    }
+  }, [user?.id])
 
   const problem = problems.find((item) => item.id === problemId) || problems[0]
   const solved = progress.solved.includes(problem.id)
@@ -85,10 +103,11 @@ export default function DSAPracticePage() {
     setEditorScrollTop(0)
   }
 
-  const submitSolution = () => {
+  const submitSolution = async () => {
     const review = reviewDsaSubmission(problem, code, language)
     setResult(review)
-    setProgress(recordDsaAttempt(problem.id, review))
+    const nextProgress = await recordDsaAttempt(user?.id, problem.id, review)
+    setProgress(nextProgress)
     pushToast(review.accepted ? 'Accepted. Nice, next problem unlocked.' : 'Reviewed. Improve and submit again.', review.accepted ? 'success' : 'info')
   }
 
