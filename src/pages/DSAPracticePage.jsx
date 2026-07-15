@@ -62,6 +62,7 @@ export default function DSAPracticePage() {
   const [result, setResult] = useState(null)
   const [progress, setProgress] = useState({ solved: [], attempts: {} })
   const [editorScrollTop, setEditorScrollTop] = useState(0)
+  const [editorScrollLeft, setEditorScrollLeft] = useState(0)
 
   useEffect(() => {
     let ignore = false
@@ -101,6 +102,7 @@ export default function DSAPracticePage() {
     setCode(starterCode[value])
     setResult(null)
     setEditorScrollTop(0)
+    setEditorScrollLeft(0)
   }
 
   const submitSolution = async () => {
@@ -117,12 +119,14 @@ export default function DSAPracticePage() {
     setCode(starterCode[language])
     setResult(null)
     setEditorScrollTop(0)
+    setEditorScrollLeft(0)
   }
 
   const resetCode = () => {
     setCode(starterCode[language])
     setResult(null)
     setEditorScrollTop(0)
+    setEditorScrollLeft(0)
   }
 
   return (
@@ -228,17 +232,23 @@ export default function DSAPracticePage() {
                 <div className="pointer-events-none absolute right-4 top-3 rounded-md border border-[#31364a] bg-[#181825]/90 px-2 py-1 text-xs font-bold text-[#a6e3a1]">O( )</div>
                 <pre
                   aria-hidden="true"
-                  className="pointer-events-none absolute inset-0 overflow-hidden whitespace-pre-wrap break-words px-4 py-4 font-mono text-sm leading-6 text-[#cdd6f4]"
-                  style={{ transform: `translateY(-${editorScrollTop}px)` }}
+                  className="pointer-events-none absolute inset-0 m-0 overflow-hidden px-4 py-4 font-mono text-sm leading-6 text-[#cdd6f4]"
                 >
-                  <code dangerouslySetInnerHTML={{ __html: highlightedCode }} />
+                  <code
+                    className="block w-max min-w-full whitespace-pre"
+                    style={{ transform: `translate(-${editorScrollLeft}px, -${editorScrollTop}px)` }}
+                    dangerouslySetInnerHTML={{ __html: highlightedCode }}
+                  />
                 </pre>
                 <textarea
-                  className="dsa-problem-scroll relative h-full w-full resize-none overflow-auto whitespace-pre-wrap break-words border-0 bg-transparent px-4 py-4 font-mono text-sm leading-6 text-transparent caret-[#f5c2e7] outline-none selection:bg-[#45475a] placeholder:text-[#6c7086]"
+                  className="dsa-problem-scroll relative h-full w-full resize-none overflow-auto whitespace-pre border-0 bg-transparent px-4 py-4 font-mono text-sm leading-6 text-transparent caret-[#f5c2e7] outline-none selection:bg-[#45475a] placeholder:text-[#6c7086]"
                   spellCheck="false"
                   value={code}
                   onChange={(event) => setCode(event.target.value)}
-                  onScroll={(event) => setEditorScrollTop(event.currentTarget.scrollTop)}
+                  onScroll={(event) => {
+                    setEditorScrollTop(event.currentTarget.scrollTop)
+                    setEditorScrollLeft(event.currentTarget.scrollLeft)
+                  }}
                 />
               </div>
             </div>
