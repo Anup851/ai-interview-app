@@ -3,6 +3,13 @@ services:
     name: ai-interview-app
     buildCommand: npm install && npm run build
     staticPublishPath: dist
+    envVars:
+      - key: VITE_SUPABASE_URL
+        value: https://oqyumdrgpzbyumxvzkcd.supabase.co
+      - key: VITE_SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9xeXVtZHJncHpieXVteHZ6a2NkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA3NDIxNjgsImV4cCI6MjA5NjMxODE2OH0.uXLpY5fIGAjrIkLLaAWI-VX7M1vfnhR0EGOVQYc0HEY
+      - key: VITE_APP_MODE
+        value: production
     routes:
       - type: rewrite
         source: /*

@@ -1,7 +1,10 @@
 import { createClient } from '@supabase/supabase-js'
 
-const supabaseUrl = import.meta?.env?.VITE_SUPABASE_URL ?? ''
-const supabaseAnonKey = import.meta?.env?.VITE_SUPABASE_ANON_KEY ?? ''
+// Vite replaces direct `import.meta.env.VITE_*` references at build time.
+// Optional chaining prevents that replacement and leaves these values undefined
+// in the browser, which incorrectly sends local development into demo mode.
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL ?? ''
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY ?? ''
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&
@@ -19,4 +22,3 @@ export const supabase = isSupabaseConfigured
       }
     })
   : null
-
