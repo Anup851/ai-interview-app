@@ -11,7 +11,7 @@ import { registerSchema, zodErrors } from '../../utils/validators.js'
 export default function RegisterPage() {
   const navigate = useNavigate()
   const { pushToast } = useToast()
-  const { signUp, signInWithProvider } = useAuth()
+  const { signUp, signInWithProvider, isConfigured } = useAuth()
   const [values, setValues] = useState({ name: '', email: '', password: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
@@ -51,7 +51,9 @@ export default function RegisterPage() {
   const socialLogin = (provider) => {
     signInWithProvider(provider.toLowerCase())
       .then((result) => {
-        if (result?.demo) pushToast(`${provider} OAuth will activate after Supabase env vars are added.`, 'info')
+        if (result?.demo && !isConfigured) {
+          pushToast(`${provider} OAuth is unavailable until Supabase auth is configured in this environment.`, 'info')
+        }
       })
       .catch((error) => pushToast(error.message || `${provider} signup failed.`, 'info'))
   }

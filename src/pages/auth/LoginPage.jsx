@@ -11,7 +11,7 @@ import { loginSchema, zodErrors } from '../../utils/validators.js'
 export default function LoginPage() {
   const navigate = useNavigate()
   const { pushToast } = useToast()
-  const { signIn, signInWithProvider } = useAuth()
+  const { signIn, signInWithProvider, isConfigured } = useAuth()
   const [values, setValues] = useState({ email: '', password: '' })
   const [errors, setErrors] = useState({})
   const [loading, setLoading] = useState(false)
@@ -42,7 +42,9 @@ export default function LoginPage() {
   const socialLogin = (provider) => {
     signInWithProvider(provider.toLowerCase())
       .then((result) => {
-        if (result?.demo) pushToast(`${provider} OAuth will activate after Supabase env vars are added.`, 'info')
+        if (result?.demo && !isConfigured) {
+          pushToast(`${provider} OAuth is unavailable until Supabase auth is configured in this environment.`, 'info')
+        }
       })
       .catch((error) => pushToast(error.message || `${provider} login failed.`, 'info'))
   }
