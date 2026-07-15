@@ -61,20 +61,45 @@ export function AuthProvider({ children }) {
 
   const signIn = async ({ email, password }) => {
     if (!isSupabaseConfigured) {
-      setUser({ ...demoUser, email })
+      const nextUser = { ...demoUser, email }
+      setUser(nextUser)
       setProfile({ ...demoProfile, email })
-      return { user: demoUser }
+      setLoading(false)
+      return { user: nextUser }
     }
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
+
+    const nextUser = data.session?.user ?? data.user ?? null
+    if (nextUser) {
+      setUser(nextUser)
+      setLoading(false)
+      const fallbackProfile = {
+        id: nextUser.id,
+        full_name: nextUser.user_metadata?.full_name || nextUser.user_metadata?.name || nextUser.email?.split('@')[0] || 'Candidate',
+        email: nextUser.email,
+        avatar_url: nextUser.user_metadata?.avatar_url || nextUser.user_metadata?.picture || null,
+        target_role: nextUser.user_metadata?.target_role || 'Software Engineer'
+      }
+      const { data: profileData, error: profileError } = await supabase.from('profiles').select('*').eq('id', nextUser.id).maybeSingle()
+      if (!profileError && profileData) {
+        setProfile(profileData)
+      } else {
+        await supabase.from('profiles').upsert(fallbackProfile)
+        setProfile(fallbackProfile)
+      }
+    }
+
     return data
   }
 
   const signUp = async ({ name, email, password }) => {
     if (!isSupabaseConfigured) {
-      setUser({ ...demoUser, email, user_metadata: { full_name: name } })
+      const nextUser = { ...demoUser, email, user_metadata: { full_name: name } }
+      setUser(nextUser)
       setProfile({ ...demoProfile, full_name: name, email })
-      return { user: demoUser }
+      setLoading(false)
+      return { user: nextUser }
     }
     const { data, error } = await supabase.auth.signUp({
       email,
@@ -83,13 +108,17 @@ export function AuthProvider({ children }) {
     })
     if (error) throw error
     if (data.user) {
-      await supabase.from('profiles').upsert({
+      const nextProfile = {
         id: data.user.id,
         full_name: name,
         email,
         target_role: 'Software Engineer'
-      })
+      }
+      setUser(data.user)
+      setProfile(nextProfile)
+      await supabase.from('profiles').upsert(nextProfile)
     }
+    setLoading(false)
     return data
   }
 
@@ -119,6 +148,7 @@ export function AuthProvider({ children }) {
     if (isSupabaseConfigured) await supabase.auth.signOut()
     setUser(isSupabaseConfigured ? null : demoUser)
     setProfile(isSupabaseConfigured ? null : demoProfile)
+    setLoading(false)
   }
 
   const updateProfile = async (updates) => {
