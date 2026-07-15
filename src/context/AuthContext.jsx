@@ -1,16 +1,21 @@
 import { createContext, useContext, useEffect, useMemo, useState } from 'react'
 import { demoProfile, demoUser } from '../lib/demoUser.js'
 import { isSupabaseConfigured, supabase } from '../lib/supabase.js'
+import { clearDemoSession, readDemoSession, writeDemoSession } from '../utils/localStore.js'
 
 const AuthContext = createContext(null)
 
 export function AuthProvider({ children }) {
-  const [user, setUser] = useState(isSupabaseConfigured ? null : demoUser)
-  const [profile, setProfile] = useState(isSupabaseConfigured ? null : demoProfile)
+  const restored = !isSupabaseConfigured ? readDemoSession() : null
+  const [user, setUser] = useState(isSupabaseConfigured ? null : (restored?.user || demoUser))
+  const [profile, setProfile] = useState(isSupabaseConfigured ? null : (restored?.profile || demoProfile))
   const [loading, setLoading] = useState(isSupabaseConfigured)
 
   useEffect(() => {
-    if (!isSupabaseConfigured) return undefined
+    if (!isSupabaseConfigured) {
+      setLoading(false)
+      return undefined
+    }
 
     let mounted = true
 
@@ -36,7 +41,11 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     if (!isSupabaseConfigured || !user) {
-      if (!isSupabaseConfigured) setProfile(demoProfile)
+      if (!isSupabaseConfigured) {
+        const restoredSession = readDemoSession()
+        if (restoredSession.profile) setProfile(restoredSession.profile)
+        else setProfile(demoProfile)
+      }
       return
     }
 
@@ -62,8 +71,10 @@ export function AuthProvider({ children }) {
   const signIn = async ({ email, password }) => {
     if (!isSupabaseConfigured) {
       const nextUser = { ...demoUser, email }
+      const nextProfile = { ...demoProfile, email }
       setUser(nextUser)
-      setProfile({ ...demoProfile, email })
+      setProfile(nextProfile)
+      writeDemoSession(nextUser, nextProfile)
       setLoading(false)
       return { user: nextUser }
     }
@@ -96,8 +107,10 @@ export function AuthProvider({ children }) {
   const signUp = async ({ name, email, password }) => {
     if (!isSupabaseConfigured) {
       const nextUser = { ...demoUser, email, user_metadata: { full_name: name } }
+      const nextProfile = { ...demoProfile, full_name: name, email }
       setUser(nextUser)
-      setProfile({ ...demoProfile, full_name: name, email })
+      setProfile(nextProfile)
+      writeDemoSession(nextUser, nextProfile)
       setLoading(false)
       return { user: nextUser }
     }
@@ -148,6 +161,7 @@ export function AuthProvider({ children }) {
     if (isSupabaseConfigured) await supabase.auth.signOut()
     setUser(isSupabaseConfigured ? null : demoUser)
     setProfile(isSupabaseConfigured ? null : demoProfile)
+    if (!isSupabaseConfigured) clearDemoSession()
     setLoading(false)
   }
 
@@ -163,7 +177,10 @@ export function AuthProvider({ children }) {
       ...updates
     }
     setProfile(nextProfile)
-    if (!isSupabaseConfigured) return nextProfile
+    if (!isSupabaseConfigured) {
+      writeDemoSession(user, nextProfile)
+      return nextProfile
+    }
     const { data, error } = await supabase.from('profiles').update(updates).eq('id', user.id).select('*').single()
     if (error) throw error
     setProfile(data)
