@@ -125,9 +125,21 @@ function countMatches(text, terms) {
   return terms.filter((term) => text.includes(term)).length
 }
 
+function hasLoop(text) {
+  return /\b(for|while)\b/.test(text)
+}
+
+function hasConditional(text) {
+  return /\b(if|else|switch|case)\b/.test(text)
+}
+
+function hasDataStructure(text) {
+  return /\b(map|set|stack|queue|dict|list|array|deque)\b/.test(text)
+}
+
 export function reviewDsaSubmission(problem, code, language) {
   const normalized = code.toLowerCase().replace(/\s+/g, ' ')
-  const hasEnoughCode = normalized.length >= 120
+  const hasEnoughCode = normalized.length >= 160
   const approachMatches = countMatches(normalized, problem.expected.approach)
   const hasComplexity = includesAny(normalized, problem.expected.complexity)
   const hasReturn = /\breturn\b/.test(normalized)
@@ -138,6 +150,9 @@ export function reviewDsaSubmission(problem, code, language) {
     : language === 'Java'
       ? /\bclass\b|\bpublic\b|\breturn\b/.test(normalized)
       : /\bfunction\b|=>|\bconst\b|\blet\b|\breturn\b/.test(normalized)
+  const hasPlaceholder = /\b(write your solution|todo|placeholder|coming soon|fix me)\b/.test(normalized)
+  const hasConcreteLogic = hasLoop(normalized) || hasConditional(normalized) || hasDataStructure(normalized)
+  const implementationDepth = [hasLoop(normalized), hasConditional(normalized), hasDataStructure(normalized)].filter(Boolean).length
 
   const score = [
     hasEnoughCode ? 20 : 0,
@@ -149,7 +164,7 @@ export function reviewDsaSubmission(problem, code, language) {
     languageSignal ? 10 : 0
   ].reduce((sum, value) => sum + value, 0)
 
-  const accepted = score >= 75 && approachMatches >= 2 && hasReturn
+  const accepted = score >= 85 && approachMatches >= 2 && hasReturn && implementationDepth >= 1 && hasConcreteLogic && !hasPlaceholder
 
   return {
     accepted,
@@ -165,6 +180,7 @@ export function reviewDsaSubmission(problem, code, language) {
       hasReturn ? '' : 'Return the requested value from the solution.',
       hasComplexity ? '' : 'Add a short time and space complexity note in a comment.',
       hasEnoughCode ? '' : 'Submit a fuller implementation, not only pseudocode.',
+      hasConcreteLogic ? '' : 'Add concrete logic such as a loop, condition, or data-structure operation.',
       hasAvoidedTrap ? '' : 'Avoid the slower trap approach for this difficulty.'
     ].filter(Boolean)
   }
