@@ -8,7 +8,9 @@ export function ToastProvider({ children }) {
   const [toasts, setToasts] = useState([])
 
   const pushToast = (message, type = 'success') => {
-    const id = crypto.randomUUID()
+    const id = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(16).slice(2)}`
     setToasts((items) => [...items, { id, message, type }])
     window.setTimeout(() => setToasts((items) => items.filter((toast) => toast.id !== id)), 3600)
   }
